@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { clerkMiddleware } from "@clerk/express";
-
+import { clerkWehbook } from "./controllers/webhook.js";
 import { connectDb } from "./config/db.js";
 import userRoute from "./routes/userRoute.js";
 import adminRoute from "./routes/adminRoute.js";
@@ -26,6 +26,12 @@ app.use(
   })
 );
 
+// Clerk webhook route 
+app.post(
+  "/api/user/webhook/clerk",
+  express.raw({ type: "application/json" }),
+  clerkWehbook
+);
 
 app.use(express.json());
 

@@ -8,7 +8,9 @@ export const clerkWehbook = async (req, res) => {
 
     const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
-    const payload = JSON.stringify(req.body);
+    
+
+    const payload = req.body.toString();
     const headers = req.headers;
 
     const wh = new Webhook(WEBHOOK_SECRET);

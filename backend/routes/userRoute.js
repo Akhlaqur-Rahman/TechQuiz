@@ -1,18 +1,3 @@
-// import express from "express";
-
-// import { clerkWehbook } from "../controllers/webhook.js";
-
-// const router = express.Router();
-
-// router.post(
-//   "/webhook/clerk",
-//   express.raw({ type: "application/json" }),
-//   clerkWehbook
-// );
-
-// export default router;
-
-
 import express from "express";
 
 import { clerkWehbook } from "../controllers/webhook.js";
@@ -21,7 +6,6 @@ import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Clerk Webhook
 router.post(
   "/webhook/clerk",
   express.raw({ type: "application/json" }),
