@@ -14,6 +14,8 @@ import {useAuth} from "@clerk/react";
  export const useApi = () =>{
     const {getToken} = useAuth();
     const request = async (endpoint, method="GET",body=null)=>{
+         console.log("BASE URL:", BASE_URL);
+         console.log("Endpoint:", endpoint);
         const token = await getToken();
 
         const config = {
