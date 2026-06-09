@@ -1,47 +1,48 @@
-# TechQuiz
+# 🚀 TechQuiz
 
-A modern full-stack quiz platform built using the MERN stack. The project provides a complete online quiz system with user authentication, admin management, quiz creation, result tracking, and a responsive UI.
-
----
-
-# Features
-
-## User Features
-
-* User authentication and authorization
-* Attempt quizzes online
-* View quiz results instantly
-* Responsive and modern UI
-* Real-time score calculation
-* Secure login system
-
-## Admin Features
-
-* Admin dashboard
-* Create and manage quizzes
-* Add, edit, and delete questions
-* Manage users
-* Track quiz performance and results
-
-## Technical Features
-
-* MERN Stack architecture
-* REST API integration
-* JWT / Clerk authentication support
-* MongoDB database integration
-* Responsive frontend design
-* Modular folder structure
+TechQuiz is a full-stack MERN Quiz Platform that allows users to attempt quizzes online while providing administrators with a dedicated dashboard for quiz management and analytics.
 
 ---
 
-# Tech Stack
+## ✨ Features
+
+### 👤 User Features
+
+* 🔐 Secure Clerk Authentication
+* 📝 Attempt quizzes online
+* 📊 Instant score calculation
+* 📈 View quiz results
+* 🎯 Responsive UI
+* ⚡ Fast and modern experience
+
+### 🛠 Admin Features
+
+* 📊 Admin Dashboard
+* ➕ Upload quizzes
+* ✏️ Manage quiz questions
+* 🗑 Delete quizzes
+* 👥 Track users
+* 📈 View statistics and performance
+
+### ⚙ Technical Features
+
+* MERN Stack Architecture
+* REST APIs
+* Clerk Authentication
+* MongoDB Database
+* Modular Folder Structure
+* Separate User & Admin Panels
+
+---
+
+# 🛠 Tech Stack
 
 ## Frontend
 
 * React.js
 * Tailwind CSS
-* Axios
 * React Router DOM
+* Axios
 
 ## Backend
 
@@ -56,81 +57,40 @@ A modern full-stack quiz platform built using the MERN stack. The project provid
 
 ---
 
-# Project Structure
+# 📂 Project Structure
 
 ```bash
 TechQuiz/
 │
-├── frontend/          # User frontend application
-├── admin/             # Admin dashboard
-├── backend/           # Backend server and APIs
+├── frontend/          # User Frontend
+├── admin/             # Admin Dashboard
+├── backend/           # Backend APIs
+├── screenshots/       # Project Images
 │
-├── package.json
-├── package-lock.json
-└── README.md
+├── README.md
+└── package.json
 ```
 
 ---
 
-# Installation & Setup
+🌐 Live Demo
 
-## Clone Repository
+👤 User Panel
 
-```bash
-git clone https://github.com/Akhlaqur-Rahman/TechQuiz.git
-cd TechQuiz
-```
+https://techquiz-drb8.onrender.com/
 
----
 
-# Backend Setup
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-Create a `.env` file inside backend folder:
-
-```env
-MONGODB_URI=your_mongodb_uri
-PORT=8080
-CLERK_SECRET_KEY=your_clerk_secret
-JWT_SECRET=your_jwt_secret
-```
-
----
-
-# Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-# Admin Setup
-
-```bash
-cd admin
-npm install
-npm run dev
-```
-
----
-
-# Environment Variables
+# ⚙ Environment Variables
 
 ## Backend `.env`
 
 ```env
 MONGODB_URI=
 PORT=
-JWT_SECRET=
 CLERK_SECRET_KEY=
+CLERK_WEBHOOK_SECRET=
+CLIENT_URL=
+ADMIN_URL=
 ```
 
 ## Frontend `.env`
@@ -140,78 +100,67 @@ VITE_CLERK_PUBLISHABLE_KEY=
 VITE_API_URL=
 ```
 
----
+## Admin `.env`
 
-# Screenshots
-
-## Home Page
-
-![Home Page](screenshots/home.png)
-
-## Dashboard
-
-![Dashboard](screenshots/dashboard.png)
-
-## Result Page
-
-![Result Page](screenshots/result.png)
+```env
+VITE_CLERK_PUBLISHABLE_KEY=
+VITE_API_URL=
+```
 
 ---
 
-# API Endpoints
+# 🚀 Installation
 
-## User APIs
+### Clone Repository
 
-* User Login
-* User Signup
-* Get User Data
+```bash
+git clone https://github.com/Akhlaqur-Rahman/TechQuiz.git
+cd TechQuiz
+```
 
-## Quiz APIs
+### Backend Setup
 
-* Create Quiz
-* Get All Quizzes
-* Submit Quiz
-* Get Results
+```bash
+cd backend
+npm install
+npm run dev
+```
 
-## Admin APIs
+### Frontend Setup
 
-* Manage Users
-* Manage Questions
-* Manage Results
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
----
+### Admin Setup
 
-# Future Improvements
-
-* Leaderboard system
-* Timer-based quizzes
-* Dark mode
-* AI-generated questions
-* Category-wise quizzes
-* Analytics dashboard
-
----
-
-# Contributing
-
-Contributions are welcome.
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+```bash
+cd admin
+npm install
+npm run dev
+```
 
 ---
 
-# License
+# 🔮 Future Improvements
 
-This project is licensed under the MIT License.
+* 🏆 Leaderboard System
+* 🌙 Dark Mode
+* 🤖 AI Generated Questions
+* 📂 Category-wise Quizzes
+* 📈 Advanced Analytics
 
 ---
 
-# Author
+# 👨‍💻 Author
 
 **Akhlaqur Rahman**
 
-GitHub: [https://github.com/Akhlaqur-Rahman](https://github.com/Akhlaqur-Rahman)
+GitHub:
+https://github.com/Akhlaqur-Rahman
+
+---
+
+⭐ If you like this project, don't forget to give it a star.
