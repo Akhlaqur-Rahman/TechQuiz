@@ -2,7 +2,17 @@ import { clerkMiddleware, getAuth } from "@clerk/express";
 import { User } from "../models/userModel.js";
 
 // Clerk protect middleware
-export const protect = clerkMiddleware();
+export const protect = (req, res, next) => {
+  const { userId } = getAuth(req);
+
+  if (!userId) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  next();
+};
 
 // Admin middleware
 export const isAdmin = async (req, res, next) => {

@@ -28,7 +28,7 @@ import {useAuth} from "@clerk/react";
             const response = await apiClient(config)
             return response.data
         } catch (error) {
-            console.error("AIXOS ERROR:",error.response?.data || error.message);
+            console.error("AXIOS ERROR:",error.response?.data || error.message);
             throw new Error(error.response?.data?.message || "API ERROR")
         }
     }
