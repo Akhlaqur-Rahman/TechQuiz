@@ -14,12 +14,15 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 //cors
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
+  "http://localhost:5173",
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: [
-      process.env.CLIENT_URL,
-      process.env.ADMIN_URL,
-    ],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -33,7 +36,9 @@ app.post(
   clerkWehbook
 );
 
-app.use(express.json());
+// Quiz uploads can contain hundreds of questions, which exceed Express's
+// default 100 KB JSON body limit.
+app.use(express.json({ limit: "5mb" }));
 
 app.use(clerkMiddleware());
 

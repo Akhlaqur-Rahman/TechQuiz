@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import { useApi } from "../services/api.js";
 import { Users } from "lucide-react";
 import { dashboardStyles } from "../assets/dummyStyles.jsx";
@@ -19,6 +20,21 @@ const levels = [
   { value: "Intermediate", color: "text-yellow-600", bg: "bg-yellow-50" },
   { value: "Advanced", color: "text-red-600", bg: "bg-red-50" },
 ];
+
+const normalizeAnswerKey = (answer, options) => {
+  const value = String(answer).trim();
+  const letter = value.toUpperCase();
+
+  if (["A", "B", "C", "D"].includes(letter)) return letter;
+
+  const matchingOptionIndex = options.findIndex(
+    (option) => option.toLocaleLowerCase() === value.toLocaleLowerCase(),
+  );
+
+  return matchingOptionIndex === -1
+    ? null
+    : ["A", "B", "C", "D"][matchingOptionIndex];
+};
 
 const DashboardCompo = () => {
   const [technology, setTechnology] = useState("");
@@ -129,13 +145,8 @@ const handleDrop = (e) => {
   setIsDragging(false);
 
   const file = e.dataTransfer.files[0];
-  if (file && file.type === "text/csv") {
+  if (file) {
     handleFileUpload({ target: { files: [file] } });
-  } else {
-    setValidationErrors((prev) => ({
-      ...prev,
-      questions: "Please upload a valid CSV file",
-    }));
   }
 };
 
@@ -143,40 +154,65 @@ const handleFileUpload = (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (file.type !== "text/csv") {
-    setValidationErrors((prev) => ({
-      ...prev,
-      questions: "Only CSV files are allowed",
-    }));
-    return;
-  }
-
   const reader = new FileReader();
 
   reader.onload = (event) => {
-    const text = event.target.result;
+    try {
+      const workbook = XLSX.read(event.target.result, { type: "array" });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, {
+        header: 1,
+        defval: "",
+        raw: false,
+      });
 
-    const rows = text.split("\n").slice(1);
+      const parsed = rows
+        .slice(1)
+        .map((row) => {
+          const cols = row.map((value) => String(value).trim());
 
-    const parsed = rows
-      .map((row) => {
-        const cols = row.split(",");
+          if (cols.length < 6 || cols.slice(0, 6).some((value) => !value)) {
+            return null;
+          }
 
-        if (cols.length < 6) return null;
+          const options = [cols[1], cols[2], cols[3], cols[4]];
+          const answerKey = normalizeAnswerKey(cols[5], options);
 
-        return {
-          question: cols[0],
-          options: [cols[1], cols[2], cols[3], cols[4]],
-          answerKey: cols[5]?.trim(),
-        };
-      })
-      .filter(Boolean);
+          if (!answerKey) return null;
 
-    setQuestions(parsed);
-    setValidationErrors((prev) => ({ ...prev, questions: "" }));
+          return {
+            question: cols[0],
+            options,
+            answerKey,
+          };
+        })
+        .filter(Boolean);
+
+      if (parsed.length === 0) {
+        throw new Error("No quiz questions found");
+      }
+
+      setQuestions(parsed);
+      setValidationErrors((prev) => ({ ...prev, questions: "" }));
+    } catch {
+      setQuestions([]);
+      setValidationErrors((prev) => ({
+        ...prev,
+        questions:
+          "No valid quiz-question table was found in this file.",
+      }));
+    }
   };
 
-  reader.readAsText(file);
+  reader.onerror = () => {
+    setQuestions([]);
+    setValidationErrors((prev) => ({
+      ...prev,
+      questions: "Unable to read this file. Please try another file.",
+    }));
+  };
+
+  reader.readAsArrayBuffer(file);
 };
 
   return (
@@ -326,7 +362,7 @@ const handleFileUpload = (e) => {
 
                 <div>
                   <label className={dashboardStyles.label}>
-                    Upload Questions CSV *
+                    Upload Questions File *
                   </label>
                   <div
                     onDragOver={handleDragOver}
@@ -346,12 +382,12 @@ const handleFileUpload = (e) => {
                       if (e.key === "Enter" || e.key === " ")
                         fileInputRef.current?.click();
                     }}
-                    aria-label="Upload questions CSV"
+                    aria-label="Upload questions file"
                   >
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".csv"
+                      accept="*/*"
                       onChange={handleFileUpload}
                       className={dashboardStyles.hiddenInput}
                     />
@@ -364,12 +400,12 @@ const handleFileUpload = (e) => {
                     />
                     <p className={dashboardStyles.dropzoneTextPrimary}>
                       {isDragging
-                        ? "Drop your CSV file here"
+                        ? "Drop your file here"
                         : "Drag & drop or click to upload"}
                     </p>
                     <p className={dashboardStyles.dropzoneTextSecondary}>
-                      Supports CSV files with Question, 4 Options, and Correct
-                      Answer (A/B/C/D or exact text)
+                      Any file can be selected. To create a quiz, it must
+                      contain Question, 4 Options, and Correct Answer columns.
                     </p>
                   </div>
                   {validationErrors.questions && (

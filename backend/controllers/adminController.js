@@ -3,11 +3,36 @@ import {User} from "../models/userModel.js";
 
 const LETTERS = ["A", "B", "C", "D"];
 
+const isReadableText = (value) =>
+  typeof value === "string" &&
+  value.trim().length > 0 &&
+  !value.includes("\uFFFD") &&
+  !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(value);
+
+const hasValidQuestions = (questions) =>
+  Array.isArray(questions) &&
+  questions.length > 0 &&
+  questions.every(
+    ({ question, options, answerKey }) =>
+      isReadableText(question) &&
+      Array.isArray(options) &&
+      options.length === 4 &&
+      options.every(isReadableText) &&
+      LETTERS.includes(answerKey),
+  );
+
 // CREATE & UPDATE QUIZ
 export const uploadQuiz = async (req, res) => {
   try {
     const { technology, level, timeLimit, questions } = req.body;
     const createdBy = req.auth?.userId;
+
+    if (!isReadableText(technology) || !hasValidQuestions(questions)) {
+      return res.status(400).json({
+        message:
+          "Invalid quiz data. Upload a readable question table with four options and an A, B, C, or D answer.",
+      });
+    }
 
     const quiz = await Quiz.findOneAndUpdate(
       {
@@ -25,6 +50,7 @@ export const uploadQuiz = async (req, res) => {
       {
         new: true,
         upsert: true,
+        runValidators: true,
       }
     );
 
@@ -32,7 +58,11 @@ export const uploadQuiz = async (req, res) => {
 
   } catch (error) {
   console.error("Upload Quiz error:", error);
-  res.status(500).json({ message: "Internal Server Error" });
+  res.status(400).json({
+    message: error.name === "ValidationError"
+      ? "Invalid quiz data. Each question needs four options and an A, B, C, or D answer."
+      : "Unable to save quiz.",
+  });
 }
 };
 
