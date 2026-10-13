@@ -195,11 +195,16 @@ const SidebarCompo = () => {
     // Map each level to an object with its details
     const levels = levelKeys.map((level) => {
       const levelData = questionsData[tech][level]; // ← this line was missing
-      const LevelIcon = levelIconMap[level?.toLowerCase()] || HelpCircle;
+      const difficulty = levelData.level || level;
+      const LevelIcon = levelIconMap[difficulty?.toLowerCase()] || HelpCircle;
 
       return {
         id: level,
-        name: level.charAt(0).toUpperCase() + level.slice(1),
+        name:
+          levelData.name ||
+          (difficulty === "General"
+            ? "Quiz"
+            : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)),
         questions: levelData.questions?.length || 0,
         time: levelData.timeLimit ? `${levelData.timeLimit}m` : "",
         icon: (
@@ -570,7 +575,8 @@ const SidebarCompo = () => {
 
         data.forEach((q) => {
           const tech = q.technology?.toLowerCase();
-          const level = q.level;
+          const difficulty = q.level || "General";
+          const level = [difficulty, q.subName || ""].join("::");
 
           if (!formatted[tech]) {
             formatted[tech] = {};
@@ -604,6 +610,13 @@ const SidebarCompo = () => {
               };
             }),
             timeLimit: q.timeLimit,
+            level: difficulty,
+            name: [
+              difficulty === "General" ? "" : difficulty,
+              q.subName,
+            ]
+              .filter(Boolean)
+              .join(" • ") || "Quiz",
           };
         });
 

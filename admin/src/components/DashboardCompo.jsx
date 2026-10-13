@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
+import mammoth from "mammoth";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { recognize } from "tesseract.js";
 import { useApi } from "../services/api.js";
 import { Users } from "lucide-react";
 import { dashboardStyles } from "../assets/dummyStyles.jsx";
@@ -21,14 +25,23 @@ const levels = [
   { value: "Advanced", color: "text-red-600", bg: "bg-red-50" },
 ];
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
 const normalizeAnswerKey = (answer, options) => {
   const value = String(answer).trim();
   const letter = value.toUpperCase();
 
   if (["A", "B", "C", "D"].includes(letter)) return letter;
 
-  const matchingOptionIndex = options.findIndex(
-    (option) => option.toLocaleLowerCase() === value.toLocaleLowerCase(),
+  const comparableValue = value
+    .replace(/\bpage\s+\d+\b/gi, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .toLocaleLowerCase();
+  const matchingOptionIndex = options.findIndex((option) =>
+    option
+      .replace(/\bpage\s+\d+\b/gi, "")
+      .replace(/[^\p{L}\p{N}]+/gu, "")
+      .toLocaleLowerCase() === comparableValue,
   );
 
   return matchingOptionIndex === -1
@@ -36,9 +49,149 @@ const normalizeAnswerKey = (answer, options) => {
     : ["A", "B", "C", "D"][matchingOptionIndex];
 };
 
+const parseQuizRows = (rows) =>
+  rows
+    .slice(1)
+    .map((row) => {
+      const cols = row.map((value) => String(value).trim());
+
+      if (cols.length < 6 || cols.slice(0, 6).some((value) => !value)) {
+        return null;
+      }
+
+      const options = [cols[1], cols[2], cols[3], cols[4]];
+      const answerKey = normalizeAnswerKey(cols[5], options);
+
+      return answerKey
+        ? { question: cols[0], options, answerKey }
+        : null;
+    })
+    .filter(Boolean);
+
+const parseQuizText = (text) => {
+  const examQuestions = Array.from(
+    text.matchAll(/Q\s*\d+\.\s*([\s\S]*?)(?=Q\s*\d+\.|$)/gi),
+  )
+    .map((match) => {
+      const block = match[1];
+      const choicesMarker = block.match(/(?:choose|select)[\s\S]{0,80}?options\s*:/i);
+      const choiceBlock = choicesMarker
+        ? block.slice(choicesMarker.index + choicesMarker[0].length)
+        : block;
+      const optionMatches = Array.from(choiceBlock.matchAll(/\(([a-d])\)\s*/gi));
+      const answerMatch = choiceBlock.match(/Answer\s*:\s*([\s\S]*?)$/i);
+
+      if (optionMatches.length !== 4 || !answerMatch) return null;
+
+      const question = choicesMarker
+        ? block.slice(0, choicesMarker.index).trim()
+        : block.slice(0, optionMatches[0].index).trim();
+      const options = optionMatches.map((option, index) => {
+        const start = option.index + option[0].length;
+        const end = index === optionMatches.length - 1
+          ? answerMatch.index
+          : optionMatches[index + 1].index;
+        return choiceBlock.slice(start, end).trim();
+      });
+      const answerKey = normalizeAnswerKey(answerMatch[1].trim(), options);
+
+      return question && options.every(Boolean) && answerKey
+        ? { question, options, answerKey }
+        : null;
+    })
+    .filter(Boolean);
+
+  if (examQuestions.length > 0) return examQuestions;
+
+  const lines = text
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const questions = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const questionMatch = lines[index].match(
+      /^(?:question\s*\d*\s*[:.)-]*|\d+\s*[.)-])\s*(.+)$/i,
+    );
+    if (!questionMatch) continue;
+
+    const question = questionMatch[1].trim();
+    const options = [];
+    let answer = "";
+
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const optionMatch = lines[cursor].match(/^([A-D])[.)-]\s*(.+)$/i);
+      const answerMatch = lines[cursor].match(/^(?:correct\s+)?answer\s*[:.)-]*\s*(.+)$/i);
+
+      if (optionMatch) {
+        options[optionMatch[1].toUpperCase().charCodeAt(0) - 65] = optionMatch[2].trim();
+      } else if (answerMatch) {
+        answer = answerMatch[1].trim();
+        index = cursor;
+        break;
+      } else if (/^(?:question\s*\d*|\d+\s*[.)-])\s*/i.test(lines[cursor])) {
+        break;
+      }
+    }
+
+    if (options.length === 4 && options.every(Boolean)) {
+      const answerKey = normalizeAnswerKey(answer, options);
+      if (answerKey) questions.push({ question, options, answerKey });
+    }
+  }
+
+  return questions;
+};
+
+const extractPdfText = async (file) => {
+  const document = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const pages = [];
+
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const content = await (await document.getPage(pageNumber)).getTextContent();
+    let line = "";
+    const pageLines = [];
+
+    content.items.forEach((item) => {
+      line += `${item.str} `;
+      if (item.hasEOL) {
+        pageLines.push(line.trim());
+        line = "";
+      }
+    });
+    if (line.trim()) pageLines.push(line.trim());
+    pages.push(pageLines.join("\n"));
+  }
+
+  return pages.join("\n");
+};
+
+const extractFileText = async (file) => {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  if (file.type === "application/pdf" || extension === "pdf") {
+    return extractPdfText(file);
+  }
+  if (
+    file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    extension === "docx"
+  ) {
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value;
+  }
+  if (file.type.startsWith("image/")) {
+    const { data } = await recognize(file, "eng");
+    return data.text;
+  }
+
+  return new TextDecoder().decode(await file.arrayBuffer());
+};
+
 const DashboardCompo = () => {
   const [technology, setTechnology] = useState("");
-  const [level, setLevel] = useState("Basic");
+  const [level, setLevel] = useState("");
+  const [subName, setSubName] = useState("");
   const [timeLimit, setTimeLimit] = useState(30);
   const [questions, setQuestions] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,7 +234,7 @@ const DashboardCompo = () => {
   const letterForIndex = (i) => ["A", "B", "C", "D"][i] || "";
 
   const isFormValid =
-    technology.trim() !== "" && level && timeLimit && questions.length > 0;
+    technology.trim() !== "" && timeLimit && questions.length > 0;
 
 const handleSubmit = async () => {
   if (!isFormValid) return;
@@ -89,7 +242,8 @@ const handleSubmit = async () => {
   try {
     const payload = {
       technology: technology.trim(),
-      level,
+      level: level || "General",
+      subName: subName.trim(),
       timeLimit: Number(timeLimit),
       questions: questions.map((q) => ({
         question: q.question,
@@ -116,7 +270,8 @@ const handleSubmit = async () => {
     });
 
     setTechnology("");
-    setLevel("Basic");
+    setLevel("");
+    setSubName("");
     setTimeLimit(30);
     setQuestions([]);
   } catch (err) {
@@ -154,43 +309,26 @@ const handleFileUpload = (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  const reader = new FileReader();
-
-  reader.onload = (event) => {
+  const readFile = async () => {
     try {
-      const workbook = XLSX.read(event.target.result, { type: "array" });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(firstSheet, {
-        header: 1,
-        defval: "",
-        raw: false,
-      });
+      const extension = file.name.split(".").pop()?.toLowerCase();
+      const isSpreadsheet = ["csv", "xlsx", "xls", "xlsm", "ods"].includes(extension);
+      let parsed = [];
 
-      const parsed = rows
-        .slice(1)
-        .map((row) => {
-          const cols = row.map((value) => String(value).trim());
-
-          if (cols.length < 6 || cols.slice(0, 6).some((value) => !value)) {
-            return null;
-          }
-
-          const options = [cols[1], cols[2], cols[3], cols[4]];
-          const answerKey = normalizeAnswerKey(cols[5], options);
-
-          if (!answerKey) return null;
-
-          return {
-            question: cols[0],
-            options,
-            answerKey,
-          };
-        })
-        .filter(Boolean);
-
-      if (parsed.length === 0) {
-        throw new Error("No quiz questions found");
+      if (isSpreadsheet) {
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(firstSheet, {
+          header: 1,
+          defval: "",
+          raw: false,
+        });
+        parsed = parseQuizRows(rows);
+      } else {
+        parsed = parseQuizText(await extractFileText(file));
       }
+
+      if (parsed.length === 0) throw new Error("No quiz questions found");
 
       setQuestions(parsed);
       setValidationErrors((prev) => ({ ...prev, questions: "" }));
@@ -199,20 +337,12 @@ const handleFileUpload = (e) => {
       setValidationErrors((prev) => ({
         ...prev,
         questions:
-          "No valid quiz-question table was found in this file.",
+          "Text was read, but no valid questions were found. Use Question, A-D options, and Answer lines.",
       }));
     }
   };
 
-  reader.onerror = () => {
-    setQuestions([]);
-    setValidationErrors((prev) => ({
-      ...prev,
-      questions: "Unable to read this file. Please try another file.",
-    }));
-  };
-
-  reader.readAsArrayBuffer(file);
+  readFile();
 };
 
   return (
@@ -264,8 +394,19 @@ const handleFileUpload = (e) => {
                 </div>
 
                 <div>
+                  <label className={dashboardStyles.label}>Sub-name / Exam Name</label>
+                  <input
+                    type="text"
+                    value={subName}
+                    onChange={(e) => setSubName(e.target.value)}
+                    placeholder="e.g., STET PYQS, Shift 2"
+                    className={`${dashboardStyles.inputBase} ${dashboardStyles.inputNormalBorder}`}
+                  />
+                </div>
+
+                <div>
                   <label className={dashboardStyles.label}>
-                    Difficulty Level*
+                    Difficulty Level (Optional)
                   </label>
 
                   <div className={dashboardStyles.levelGrid}>
@@ -404,8 +545,8 @@ const handleFileUpload = (e) => {
                         : "Drag & drop or click to upload"}
                     </p>
                     <p className={dashboardStyles.dropzoneTextSecondary}>
-                      Any file can be selected. To create a quiz, it must
-                      contain Question, 4 Options, and Correct Answer columns.
+                      Reads CSV/Excel tables, PDF, DOCX, TXT, and images. Text
+                      questions need A-D options and an Answer line.
                     </p>
                   </div>
                   {validationErrors.questions && (

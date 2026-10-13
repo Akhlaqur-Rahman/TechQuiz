@@ -24,10 +24,15 @@ const hasValidQuestions = (questions) =>
 // CREATE & UPDATE QUIZ
 export const uploadQuiz = async (req, res) => {
   try {
-    const { technology, level, timeLimit, questions } = req.body;
+    const { technology, level, subName, timeLimit, questions } = req.body;
     const createdBy = req.auth?.userId;
+    const normalizedLevel = level || "General";
+    const normalizedSubName = subName?.trim().toLowerCase() || "";
 
-    if (!isReadableText(technology) || !hasValidQuestions(questions)) {
+    if (
+      !isReadableText(technology) ||
+      !hasValidQuestions(questions)
+    ) {
       return res.status(400).json({
         message:
           "Invalid quiz data. Upload a readable question table with four options and an A, B, C, or D answer.",
@@ -37,11 +42,13 @@ export const uploadQuiz = async (req, res) => {
     const quiz = await Quiz.findOneAndUpdate(
       {
         technology: technology.toLowerCase(),
-        level,
+        level: normalizedLevel,
+        subName: normalizedSubName,
       },
       {
         technology: technology.toLowerCase(),
-        level,
+        level: normalizedLevel,
+        subName: normalizedSubName,
         timeLimit,
         questions,
         totalQuestions: questions.length,

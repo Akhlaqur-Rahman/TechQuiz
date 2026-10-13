@@ -44,6 +44,7 @@ const ListCompo = () => {
         const formatted = data.map((q) => ({
           id: q._id,
           name: q.technology,
+          subName: q.subName || "",
           level: q.level,
           timeLimit: q.timeLimit,
           questions: q.totalQuestions,
@@ -240,6 +241,11 @@ const ListCompo = () => {
                           <h3 className={listPageStyles.techName}>
                             {tech.name}
                           </h3>
+                          {tech.subName && (
+                            <p className="mt-1 text-sm font-medium text-white/85">
+                              {tech.subName}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="mt-3 sm:mt-0">

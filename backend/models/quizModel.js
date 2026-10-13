@@ -36,8 +36,15 @@ const quizSchema = new mongoose.Schema(
 
     level: {
       type: String,
-      enum: ["Basic", "Intermediate", "Advanced"],
-      required: true,
+      enum: ["General", "Basic", "Intermediate", "Advanced"],
+      default: "General",
+    },
+
+    subName: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: "",
     },
 
     timeLimit: {
@@ -72,6 +79,9 @@ quizSchema.pre("save", function (next) {
 });
 
 
-quizSchema.index({ technology: 1, level: 1 }, { unique: true });
+quizSchema.index(
+  { technology: 1, level: 1, subName: 1 },
+  { unique: true },
+);
 
 export default mongoose.model("Quiz", quizSchema);
