@@ -10,6 +10,7 @@ import {
   FileText,
   Filter,
   Plus,
+  Pencil,
   Search,
   Trash2,
   X,
@@ -25,6 +26,13 @@ const ListCompo = () => {
     techName: "",
   }); //as a pop up
   const [technologies, setTechnologies] = useState([]);
+  const [editingQuiz, setEditingQuiz] = useState(null);
+  const [targetQuestionCount, setTargetQuestionCount] = useState(50);
+  const [newQuestion, setNewQuestion] = useState({
+    question: "",
+    options: ["", "", "", ""],
+    answerKey: "A",
+  });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("All"); //all level will shown
@@ -48,6 +56,7 @@ const ListCompo = () => {
           level: q.level,
           timeLimit: q.timeLimit,
           questions: q.totalQuestions,
+          questionItems: q.questions || [],
           uploadDate: q.createdAt,
           color: "bg-linear-to-r from-cyan-500 to-blue-500",
           icon: <Cpu className="w-5 h-5 md:w-6 md:h-6" />,
@@ -95,6 +104,67 @@ const ListCompo = () => {
       ...t,
       visible: false,
     }));
+  };
+
+  const openQuestionManager = (quiz) => {
+    setEditingQuiz({ ...quiz, questionItems: [...quiz.questionItems] });
+    setTargetQuestionCount(Math.max(50, quiz.questionItems.length));
+    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+  };
+
+  const addManualQuestion = () => {
+    if (
+      !newQuestion.question.trim() ||
+      newQuestion.options.some((option) => !option.trim())
+    ) {
+      setToast({ visible: true, type: "error", message: "Enter a question and all four options." });
+      return;
+    }
+
+    setEditingQuiz((quiz) => ({
+      ...quiz,
+      questionItems: [
+        ...quiz.questionItems,
+        {
+          question: newQuestion.question.trim(),
+          options: newQuestion.options.map((option) => option.trim()),
+          answerKey: newQuestion.answerKey,
+        },
+      ],
+    }));
+    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+  };
+
+  const saveQuestions = async () => {
+    if (!editingQuiz || editingQuiz.questionItems.length === 0) return;
+
+    if (editingQuiz.questionItems.length < targetQuestionCount) {
+      setToast({
+        visible: true,
+        type: "error",
+        message: `Add ${targetQuestionCount - editingQuiz.questionItems.length} more question(s) before saving.`,
+      });
+      return;
+    }
+
+    try {
+      const data = await request(
+        `/admin/quiz/${editingQuiz.id}/questions`,
+        "PUT",
+        { questions: editingQuiz.questionItems },
+      );
+      setTechnologies((items) =>
+        items.map((item) =>
+          item.id === editingQuiz.id
+            ? { ...item, questions: data.quiz.totalQuestions, questionItems: data.quiz.questions }
+            : item,
+        ),
+      );
+      setEditingQuiz(null);
+      setToast({ visible: true, type: "success", message: "Questions updated successfully." });
+    } catch (error) {
+      setToast({ visible: true, type: "error", message: error.message || "Unable to update questions." });
+    }
   };
 
   const getLevelColor = (level) => {
@@ -334,6 +404,13 @@ const ListCompo = () => {
                     <div className={listPageStyles.cardFooter}>
                       <div className="flex items-center gap-3">
                         <button
+                          onClick={() => openQuestionManager(tech)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Manage Questions
+                        </button>
+                        <button
                           onClick={() =>
                             setConfirmDelete({
                               open: true,
@@ -379,6 +456,92 @@ const ListCompo = () => {
                     Create First Quiz
                   </span>
                 </a>
+              </div>
+            </div>
+          )}
+
+          {editingQuiz && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+              <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Manage Questions</h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {editingQuiz.name}{editingQuiz.subName ? ` · ${editingQuiz.subName}` : ""}
+                    </p>
+                  </div>
+                  <button onClick={() => setEditingQuiz(null)} className="text-slate-500 hover:text-slate-800">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="mb-5 grid gap-3 rounded-xl bg-blue-50 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <p className="font-semibold text-blue-900">
+                    {editingQuiz.questionItems.length} of {targetQuestionCount} questions
+                    {editingQuiz.questionItems.length < targetQuestionCount &&
+                      ` · ${targetQuestionCount - editingQuiz.questionItems.length} remaining`}
+                  </p>
+                  <label className="text-sm font-medium text-blue-900">
+                    Target
+                    <input
+                      type="number"
+                      min="1"
+                      value={targetQuestionCount}
+                      onChange={(e) => setTargetQuestionCount(Math.max(1, Number(e.target.value) || 1))}
+                      className="ml-2 w-20 rounded border border-blue-200 bg-white px-2 py-1"
+                    />
+                  </label>
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                  <h4 className="font-semibold text-slate-900">Add Missing Question</h4>
+                  <textarea
+                    value={newQuestion.question}
+                    onChange={(e) => setNewQuestion((item) => ({ ...item, question: e.target.value }))}
+                    placeholder="Question"
+                    rows="2"
+                    className="w-full rounded-lg border border-slate-300 p-2"
+                  />
+                  {newQuestion.options.map((option, index) => (
+                    <input
+                      key={index}
+                      value={option}
+                      onChange={(e) => {
+                        const options = [...newQuestion.options];
+                        options[index] = e.target.value;
+                        setNewQuestion((item) => ({ ...item, options }));
+                      }}
+                      placeholder={`Option ${["A", "B", "C", "D"][index]}`}
+                      className="w-full rounded-lg border border-slate-300 p-2"
+                    />
+                  ))}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="text-sm font-medium text-slate-700">
+                      Correct answer
+                      <select
+                        value={newQuestion.answerKey}
+                        onChange={(e) => setNewQuestion((item) => ({ ...item, answerKey: e.target.value }))}
+                        className="ml-2 rounded border border-slate-300 px-2 py-1"
+                      >
+                        {["A", "B", "C", "D"].map((letter) => <option key={letter}>{letter}</option>)}
+                      </select>
+                    </label>
+                    <button onClick={addManualQuestion} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
+                      Add Question
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button onClick={() => setEditingQuiz(null)} className="rounded-lg border px-4 py-2">Cancel</button>
+                  <button
+                    onClick={saveQuestions}
+                    disabled={editingQuiz.questionItems.length < targetQuestionCount}
+                    className="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Save {editingQuiz.questionItems.length} Questions
+                  </button>
+                </div>
               </div>
             </div>
           )}

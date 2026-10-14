@@ -33,6 +33,9 @@ const normalizeAnswerKey = (answer, options) => {
 
   if (["A", "B", "C", "D"].includes(letter)) return letter;
 
+  const prefixedLetter = value.match(/^\(?\s*([A-D])\s*\)?[.)-]?\s*/i);
+  if (prefixedLetter) return prefixedLetter[1].toUpperCase();
+
   const comparableValue = value
     .replace(/\bpage\s+\d+\b/gi, "")
     .replace(/[^\p{L}\p{N}]+/gu, "")
@@ -78,8 +81,13 @@ const parseQuizText = (text) => {
       const choiceBlock = choicesMarker
         ? block.slice(choicesMarker.index + choicesMarker[0].length)
         : block;
-      const optionMatches = Array.from(choiceBlock.matchAll(/\(([a-d])\)\s*/gi));
       const answerMatch = choiceBlock.match(/Answer\s*:\s*([\s\S]*?)$/i);
+      const optionsBlock = answerMatch
+        ? choiceBlock.slice(0, answerMatch.index)
+        : choiceBlock;
+      const optionMatches = Array.from(
+        optionsBlock.matchAll(/(?:\(([a-d])\)|\b([a-d])[.)])\s*/gi),
+      );
 
       if (optionMatches.length !== 4 || !answerMatch) return null;
 
@@ -89,9 +97,9 @@ const parseQuizText = (text) => {
       const options = optionMatches.map((option, index) => {
         const start = option.index + option[0].length;
         const end = index === optionMatches.length - 1
-          ? answerMatch.index
+          ? optionsBlock.length
           : optionMatches[index + 1].index;
-        return choiceBlock.slice(start, end).trim();
+        return optionsBlock.slice(start, end).trim();
       });
       const answerKey = normalizeAnswerKey(answerMatch[1].trim(), options);
 
@@ -102,6 +110,60 @@ const parseQuizText = (text) => {
     .filter(Boolean);
 
   if (examQuestions.length > 0) return examQuestions;
+
+  // Some exam PDFs print the correct answer immediately before the options
+  // instead of using an "Answer:" line.
+  const answerBeforeOptionsQuestions = Array.from(
+    text.matchAll(/Q\s*\d+\.\s*([\s\S]*?)(?=Q\s*\d+\.|$)/gi),
+  )
+    .map((match) => {
+      const block = match[1];
+      const optionMatches = Array.from(
+        block.matchAll(/(?:\(([a-d])\)|\b([a-d])[.)])\s*/gi),
+      );
+
+      if (optionMatches.length !== 4) return null;
+
+      const questionAndAnswer = block.slice(0, optionMatches[0].index).trim();
+      const options = optionMatches.map((option, index) => {
+        const start = option.index + option[0].length;
+        const end = index === optionMatches.length - 1
+          ? block.length
+          : optionMatches[index + 1].index;
+        return block.slice(start, end).trim();
+      });
+
+      const comparablePrefix = questionAndAnswer
+        .replace(/[^\p{L}\p{N}]+/gu, "")
+        .toLocaleLowerCase();
+      const answerIndex = options.findIndex((option) =>
+        comparablePrefix.endsWith(
+          option.replace(/[^\p{L}\p{N}]+/gu, "").toLocaleLowerCase(),
+        ),
+      );
+
+      if (answerIndex === -1) return null;
+
+      const answerText = options[answerIndex];
+      const rawAnswerIndex = questionAndAnswer
+        .toLocaleLowerCase()
+        .lastIndexOf(answerText.toLocaleLowerCase());
+      let question = questionAndAnswer.slice(0, rawAnswerIndex).trim();
+      const lastQuestionMark = question.lastIndexOf("?");
+
+      if (lastQuestionMark !== -1) {
+        question = question.slice(0, lastQuestionMark + 1);
+      }
+
+      return question && options.every(Boolean)
+        ? { question, options, answerKey: ["A", "B", "C", "D"][answerIndex] }
+        : null;
+    })
+    .filter(Boolean);
+
+  if (answerBeforeOptionsQuestions.length > 0) {
+    return answerBeforeOptionsQuestions;
+  }
 
   const lines = text
     .replace(/\r/g, "")
@@ -469,7 +531,7 @@ const handleFileUpload = (e) => {
                         }}
                         onBlur={(e) => {
                           if (e.target.value === "") {
-                            setTimeLimit(30);
+                            setTimeLimit(50);
                           }
                         }}
                         className={`${dashboardStyles.timeInputBase} ${

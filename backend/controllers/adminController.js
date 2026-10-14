@@ -85,6 +85,35 @@ export const getAllQuizzes = async (req, res) => {
   }
 };
 
+// UPDATE QUESTIONS FOR AN EXISTING QUIZ
+export const updateQuizQuestions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { questions } = req.body;
+
+    if (!hasValidQuestions(questions)) {
+      return res.status(400).json({
+        message: "Each question needs readable text, four options, and an A, B, C, or D answer.",
+      });
+    }
+
+    const quiz = await Quiz.findByIdAndUpdate(
+      id,
+      { questions, totalQuestions: questions.length },
+      { new: true, runValidators: true },
+    );
+
+    if (!quiz) {
+      return res.status(404).json({ message: "Quiz not found." });
+    }
+
+    return res.json({ success: true, quiz });
+  } catch (error) {
+    console.error("Update quiz questions error:", error);
+    return res.status(400).json({ message: "Unable to update quiz questions." });
+  }
+};
+
 
 // DELETE QUIZ
 export const deleteQuiz = async (req, res) => {

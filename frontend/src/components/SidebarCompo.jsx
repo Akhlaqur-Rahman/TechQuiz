@@ -282,6 +282,8 @@ const SidebarCompo = () => {
   const [reviewMode, setReviewMode] = useState(
     initialProgress.reviewMode || false,
   );
+  // Result page filter is UI-only; it does not change saved quiz progress.
+  const [resultListFilter, setResultListFilter] = useState(null);
 
   // Sidebar responsive
   // NOTE: changed default breakpoint: sidebar is open by default on large screens >= 1024 (lg)
@@ -538,6 +540,7 @@ const SidebarCompo = () => {
     setShowResults(false);
     setIsSubmitted(false);
     setReviewMode(false);
+    setResultListFilter(null);
 
     persistProgressForLevel(selectedTech, selectedLevel, {
       currentQuestion: 0,
@@ -1260,6 +1263,7 @@ const SidebarCompo = () => {
     setIsSubmitted(false);
     setReviewMode(false);
     setIsQuizStarted(false);
+    setResultListFilter(null);
 
     // Reset timer states with fresh start
     const fullTime = getTimeLimit(selectedTech, selectedLevel);
@@ -1370,6 +1374,20 @@ const SidebarCompo = () => {
     }
 
     return "incorrect";
+  };
+
+  const resultQuestions = resultListFilter
+    ? questions
+        .map((question, index) => ({ question, index }))
+        .filter(({ index }) => getQuestionStatus(index) === resultListFilter)
+    : [];
+
+  const formatAnswer = (question, answerIndex) => {
+    if (answerIndex === undefined || answerIndex === -1) return "Not answered";
+
+    const option = question.options?.[answerIndex];
+    const label = String.fromCharCode(65 + answerIndex);
+    return option ? `${label}. ${option}` : `Option ${label}`;
   };
 
   // Get answer feedback for current question
@@ -2044,6 +2062,113 @@ ${
                       Score based on {score.correct} correct out of{" "}
                       {score.total} questions
                     </div>
+                  </div>
+
+                  <div className="mt-6 w-full">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setResultListFilter((current) =>
+                            current === "correct" ? null : "correct",
+                          )
+                        }
+                        className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 font-semibold transition ${
+                          resultListFilter === "correct"
+                            ? "border-emerald-500 bg-emerald-600 text-white"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        }`}
+                      >
+                        <CheckCircle size={18} />
+                        {resultListFilter === "correct"
+                          ? "Hide Correct Questions"
+                          : `View Correct Questions (${score.correct})`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setResultListFilter((current) =>
+                            current === "incorrect" ? null : "incorrect",
+                          )
+                        }
+                        className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 font-semibold transition ${
+                          resultListFilter === "incorrect"
+                            ? "border-rose-500 bg-rose-600 text-white"
+                            : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                        }`}
+                      >
+                        <XCircle size={18} />
+                        {resultListFilter === "incorrect"
+                          ? "Hide Incorrect Questions"
+                          : `View Incorrect Questions (${score.incorrect})`}
+                      </button>
+                    </div>
+
+                    {resultListFilter && (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm sm:p-5">
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <h3 className="text-lg font-bold text-slate-800">
+                            {resultListFilter === "correct"
+                              ? "Correct Questions"
+                              : "Incorrect Questions"}
+                          </h3>
+                          <span
+                            className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                              resultListFilter === "correct"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-rose-100 text-rose-700"
+                            }`}
+                          >
+                            {resultQuestions.length} questions
+                          </span>
+                        </div>
+
+                        <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+                          {resultQuestions.map(({ question, index }) => {
+                            const isCorrect = resultListFilter === "correct";
+                            return (
+                              <article
+                                key={question._id || question.id || index}
+                                className={`rounded-xl border p-4 ${
+                                  isCorrect
+                                    ? "border-emerald-200 bg-emerald-50/60"
+                                    : "border-rose-200 bg-rose-50/60"
+                                }`}
+                              >
+                                <div className="mb-2 flex items-start gap-2">
+                                  {isCorrect ? (
+                                    <CheckCircle
+                                      size={19}
+                                      className="mt-0.5 shrink-0 text-emerald-600"
+                                    />
+                                  ) : (
+                                    <XCircle
+                                      size={19}
+                                      className="mt-0.5 shrink-0 text-rose-600"
+                                    />
+                                  )}
+                                  <p className="font-semibold leading-relaxed text-slate-800">
+                                    {index + 1}. {question.question}
+                                  </p>
+                                </div>
+                                <div className="ml-7 space-y-1 text-sm leading-relaxed">
+                                  <p className={isCorrect ? "text-emerald-800" : "text-rose-800"}>
+                                    <span className="font-semibold">Your answer:</span>{" "}
+                                    {formatAnswer(question, userAnswers[index])}
+                                  </p>
+                                  {!isCorrect && (
+                                    <p className="text-emerald-800">
+                                      <span className="font-semibold">Correct answer:</span>{" "}
+                                      {formatAnswer(question, question.correctAnswer)}
+                                    </p>
+                                  )}
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className={sidebarStyles.resultsButtonsContainer}>
