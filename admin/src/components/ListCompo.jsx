@@ -27,7 +27,8 @@ const ListCompo = () => {
   }); //as a pop up
   const [technologies, setTechnologies] = useState([]);
   const [editingQuiz, setEditingQuiz] = useState(null);
-  const [targetQuestionCount, setTargetQuestionCount] = useState(50);
+  const [targetQuestionCount, setTargetQuestionCount] = useState(1);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
   const [newQuestion, setNewQuestion] = useState({
     question: "",
     options: ["", "", "", ""],
@@ -108,7 +109,8 @@ const ListCompo = () => {
 
   const openQuestionManager = (quiz) => {
     setEditingQuiz({ ...quiz, questionItems: [...quiz.questionItems] });
-    setTargetQuestionCount(Math.max(50, quiz.questionItems.length));
+    setTargetQuestionCount(Math.max(1, quiz.questionItems.length));
+    setEditingQuestionIndex(null);
     setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
   };
 
@@ -121,23 +123,55 @@ const ListCompo = () => {
       return;
     }
 
+    const questionToSave = {
+      question: newQuestion.question.trim(),
+      options: newQuestion.options.map((option) => option.trim()),
+      answerKey: newQuestion.answerKey,
+    };
+
     setEditingQuiz((quiz) => ({
       ...quiz,
-      questionItems: [
-        ...quiz.questionItems,
-        {
-          question: newQuestion.question.trim(),
-          options: newQuestion.options.map((option) => option.trim()),
-          answerKey: newQuestion.answerKey,
-        },
-      ],
+      questionItems:
+        editingQuestionIndex === null
+          ? [...quiz.questionItems, questionToSave]
+          : quiz.questionItems.map((item, index) =>
+              index === editingQuestionIndex ? questionToSave : item,
+            ),
     }));
+    setEditingQuestionIndex(null);
+    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+  };
+
+  const editQuestion = (question, index) => {
+    setEditingQuestionIndex(index);
+    setNewQuestion({
+      question: question.question || "",
+      options: [...(question.options || ["", "", "", ""])],
+      answerKey: question.answerKey || "A",
+    });
+  };
+
+  const removeQuestion = (index) => {
+    setEditingQuiz((quiz) => ({
+      ...quiz,
+      questionItems: quiz.questionItems.filter((_, itemIndex) => itemIndex !== index),
+    }));
+    if (editingQuestionIndex === index) {
+      setEditingQuestionIndex(null);
+      setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+    }
+  };
+
+  const cancelQuestionEdit = () => {
+    setEditingQuestionIndex(null);
     setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
   };
 
   const saveQuestions = async () => {
     if (!editingQuiz || editingQuiz.questionItems.length === 0) return;
 
+    // The target remains optional: it only blocks saving when the admin has
+    // explicitly set a higher count to fill missing questions.
     if (editingQuiz.questionItems.length < targetQuestionCount) {
       setToast({
         visible: true,
@@ -465,7 +499,7 @@ const ListCompo = () => {
               <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">Manage Questions</h3>
+                    <h3 className="text-xl font-bold text-slate-900">Review & Edit Questions</h3>
                     <p className="mt-1 text-sm text-slate-600">
                       {editingQuiz.name}{editingQuiz.subName ? ` · ${editingQuiz.subName}` : ""}
                     </p>
@@ -493,8 +527,48 @@ const ListCompo = () => {
                   </label>
                 </div>
 
+                <div className="mb-5 space-y-3 rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="font-semibold text-slate-900">Uploaded Questions</h4>
+                    <span className="text-sm text-slate-500">Edit any parsing mistake before saving</span>
+                  </div>
+                  <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+                    {editingQuiz.questionItems.map((question, index) => (
+                      <article key={index} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900">{index + 1}. {question.question}</p>
+                            <div className="mt-2 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+                              {(question.options || []).map((option, optionIndex) => (
+                                <span key={optionIndex} className={question.answerKey === ["A", "B", "C", "D"][optionIndex] ? "font-semibold text-emerald-700" : ""}>
+                                  {["A", "B", "C", "D"][optionIndex]}. {option}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 gap-2">
+                            <button onClick={() => editQuestion(question, index)} className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-50">
+                              <Pencil className="h-3.5 w-3.5" /> Edit
+                            </button>
+                            <button onClick={() => removeQuestion(index)} className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-sm font-semibold text-rose-700 hover:bg-rose-50">
+                              <Trash2 className="h-3.5 w-3.5" /> Remove
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-3 rounded-xl border border-slate-200 p-4">
-                  <h4 className="font-semibold text-slate-900">Add Missing Question</h4>
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="font-semibold text-slate-900">
+                      {editingQuestionIndex === null ? "Add Missing Question" : `Edit Question ${editingQuestionIndex + 1}`}
+                    </h4>
+                    {editingQuestionIndex !== null && (
+                      <button onClick={cancelQuestionEdit} className="text-sm font-medium text-slate-600 hover:text-slate-900">Cancel edit</button>
+                    )}
+                  </div>
                   <textarea
                     value={newQuestion.question}
                     onChange={(e) => setNewQuestion((item) => ({ ...item, question: e.target.value }))}
@@ -527,7 +601,7 @@ const ListCompo = () => {
                       </select>
                     </label>
                     <button onClick={addManualQuestion} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
-                      Add Question
+                      {editingQuestionIndex === null ? "Add Question" : "Update Question"}
                     </button>
                   </div>
                 </div>
