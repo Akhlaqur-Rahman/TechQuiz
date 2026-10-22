@@ -22,6 +22,12 @@ const questionSchema = new mongoose.Schema({
     enum: ["A", "B", "C", "D"],
     required: true,
   },
+  // Optional teacher/admin note shown to learners after they submit and review.
+  explanation: {
+    type: String,
+    trim: true,
+    default: "",
+  },
 });
 
 // QUIZ SCHEMA

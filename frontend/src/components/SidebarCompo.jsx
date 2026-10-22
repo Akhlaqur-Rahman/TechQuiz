@@ -237,8 +237,27 @@ const SidebarCompo = () => {
         isQuizStarted: false,
       };
 
+    const savedProgress = savedState?.progressByTech?.[tech]?.[level];
+
+    // A completed attempt must never reopen with its old answers. It will
+    // start fresh when the learner opens that quiz again.
+    if (savedProgress?.isSubmitted) {
+      return {
+        currentQuestion: 0,
+        userAnswers: {},
+        showResults: false,
+        completedQuestions: [],
+        isSubmitted: false,
+        reviewMode: false,
+        timeLeft: 0,
+        timerStartedAt: null,
+        elapsedTime: 0,
+        isQuizStarted: false,
+      };
+    }
+
     return (
-      savedState?.progressByTech?.[tech]?.[level] || {
+      savedProgress || {
         currentQuestion: 0,
         userAnswers: {},
         showResults: false,
@@ -314,6 +333,36 @@ const SidebarCompo = () => {
     const time = questionsData?.[tech]?.[level]?.timeLimit;
 
     return time ? time * 60 : 0;
+  };
+
+  const resetCompletedAttempt = (tech, level) => {
+    const fullTime = getTimeLimit(tech, level);
+
+    stopTimer();
+    setCurrentQuestion(0);
+    setUserAnswers({});
+    setShowResults(false);
+    setCompletedQuestions(new Set());
+    setIsSubmitted(false);
+    setReviewMode(false);
+    setIsQuizStarted(false);
+    setTimeLeft(fullTime);
+    setTimerStartedAt(null);
+    setElapsedTime(0);
+    setResultListFilter(null);
+
+    persistProgressForLevel(tech, level, {
+      currentQuestion: 0,
+      userAnswers: {},
+      showResults: false,
+      completedQuestions: [],
+      isSubmitted: false,
+      reviewMode: false,
+      timeLeft: fullTime,
+      timerStartedAt: null,
+      elapsedTime: 0,
+      isQuizStarted: false,
+    });
   };
 
   const formatTime = (seconds) => {
@@ -850,6 +899,12 @@ const SidebarCompo = () => {
           isQuizStarted: false,
         };
 
+        if (progress.isSubmitted) {
+          resetCompletedAttempt(saved.currentTech, saved.currentLevel);
+          setIsLoggedIn(true);
+          return;
+        }
+
         setIsQuizStarted(progress.isQuizStarted || false);
 
         const questions =
@@ -982,6 +1037,12 @@ const SidebarCompo = () => {
 
     const progress = progressByTech?.[selectedTech]?.[levelId];
     if (progress) {
+      if (progress.isSubmitted) {
+        resetCompletedAttempt(selectedTech, levelId);
+        if (windowWidth < 1024) setIsSidebarOpen(false);
+        return;
+      }
+
       const questions = getQuestions(selectedTech, levelId);
       const firstUnanswered = findFirstUnansweredIndex(
         progress.userAnswers || {},
@@ -2469,11 +2530,13 @@ ${
                 <div className={sidebarStyles.questionHeader}>
                   <div className={sidebarStyles.questionIconContainer}>
                     <div className={sidebarStyles.questionIcon}>
-                      <Target size={24} />
+                      <span className="text-base font-bold" aria-label={`Question ${currentQuestion + 1}`}>
+                        {currentQuestion + 1}
+                      </span>
                     </div>
                     <div>
                       <h2 className={sidebarStyles.questionTextContainer}>
-                        {currentQ.question}
+                        Question {currentQuestion + 1}: {currentQ.question}
                       </h2>
                     </div>
                   </div>
@@ -2574,6 +2637,11 @@ ${
                             ? ` Your answer was incorrect. The correct answer is option ${answerFeedback.correctAnswer + 1}.`
                             : ` This question was unattempted. The correct answer is option ${answerFeedback.correctAnswer + 1}.`}
                       </p>
+                      {currentQ.explanation?.trim() && (
+                        <p className="mt-3 rounded-lg bg-white/70 p-3 leading-relaxed text-slate-700">
+                          {currentQ.explanation}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

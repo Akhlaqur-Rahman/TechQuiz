@@ -33,6 +33,7 @@ const ListCompo = () => {
     question: "",
     options: ["", "", "", ""],
     answerKey: "A",
+    explanation: "",
   });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -111,7 +112,7 @@ const ListCompo = () => {
     setEditingQuiz({ ...quiz, questionItems: [...quiz.questionItems] });
     setTargetQuestionCount(Math.max(1, quiz.questionItems.length));
     setEditingQuestionIndex(null);
-    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A", explanation: "" });
   };
 
   const addManualQuestion = () => {
@@ -127,6 +128,7 @@ const ListCompo = () => {
       question: newQuestion.question.trim(),
       options: newQuestion.options.map((option) => option.trim()),
       answerKey: newQuestion.answerKey,
+      explanation: newQuestion.explanation.trim(),
     };
 
     setEditingQuiz((quiz) => ({
@@ -139,7 +141,7 @@ const ListCompo = () => {
             ),
     }));
     setEditingQuestionIndex(null);
-    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A", explanation: "" });
   };
 
   const editQuestion = (question, index) => {
@@ -148,6 +150,7 @@ const ListCompo = () => {
       question: question.question || "",
       options: [...(question.options || ["", "", "", ""])],
       answerKey: question.answerKey || "A",
+      explanation: question.explanation || "",
     });
   };
 
@@ -158,13 +161,13 @@ const ListCompo = () => {
     }));
     if (editingQuestionIndex === index) {
       setEditingQuestionIndex(null);
-      setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+      setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A", explanation: "" });
     }
   };
 
   const cancelQuestionEdit = () => {
     setEditingQuestionIndex(null);
-    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A" });
+    setNewQuestion({ question: "", options: ["", "", "", ""], answerKey: "A", explanation: "" });
   };
 
   const saveQuestions = async () => {
@@ -545,6 +548,11 @@ const ListCompo = () => {
                                 </span>
                               ))}
                             </div>
+                            {question.explanation && (
+                              <p className="mt-2 rounded bg-blue-50 p-2 text-sm text-blue-900">
+                                <span className="font-semibold">Explanation:</span> {question.explanation}
+                              </p>
+                            )}
                           </div>
                           <div className="flex shrink-0 gap-2">
                             <button onClick={() => editQuestion(question, index)} className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-50">
@@ -589,6 +597,13 @@ const ListCompo = () => {
                       className="w-full rounded-lg border border-slate-300 p-2"
                     />
                   ))}
+                  <textarea
+                    value={newQuestion.explanation}
+                    onChange={(e) => setNewQuestion((item) => ({ ...item, explanation: e.target.value }))}
+                    placeholder="Explanation for learners after quiz submission (optional)"
+                    rows="3"
+                    className="w-full rounded-lg border border-slate-300 p-2"
+                  />
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <label className="text-sm font-medium text-slate-700">
                       Correct answer
