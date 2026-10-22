@@ -487,7 +487,7 @@ const ListCompo = () => {
                     ? "Try adjusting your search or filter to find what you're looking for."
                     : "Get Started by creating your first technology quiz"}
                 </p>
-                <a href="/dashboard" className={listPageStyles.emptyButton}>
+                <a href="#/dashboard" className={listPageStyles.emptyButton}>
                   <Plus className={listPageStyles.emptyButtonIcon} />
                   <span className={listPageStyles.emptyButtonText}>
                     Create First Quiz
@@ -597,13 +597,16 @@ const ListCompo = () => {
                       className="w-full rounded-lg border border-slate-300 p-2"
                     />
                   ))}
-                  <textarea
-                    value={newQuestion.explanation}
-                    onChange={(e) => setNewQuestion((item) => ({ ...item, explanation: e.target.value }))}
-                    placeholder="Explanation for learners after quiz submission (optional)"
-                    rows="3"
-                    className="w-full rounded-lg border border-slate-300 p-2"
-                  />
+                  <label className="block text-sm font-medium text-slate-700">
+                    Explanation <span className="font-normal text-slate-500">(Optional)</span>
+                    <textarea
+                      value={newQuestion.explanation}
+                      onChange={(e) => setNewQuestion((item) => ({ ...item, explanation: e.target.value }))}
+                      placeholder="Write an explanation for learners after quiz submission"
+                      rows="3"
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2"
+                    />
+                  </label>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <label className="text-sm font-medium text-slate-700">
                       Correct answer

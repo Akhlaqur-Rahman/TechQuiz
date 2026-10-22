@@ -2528,18 +2528,9 @@ ${
               >
                 {/* Question status badge */}
                 <div className={sidebarStyles.questionHeader}>
-                  <div className={sidebarStyles.questionIconContainer}>
-                    <div className={sidebarStyles.questionIcon}>
-                      <span className="text-base font-bold" aria-label={`Question ${currentQuestion + 1}`}>
-                        {currentQuestion + 1}
-                      </span>
-                    </div>
-                    <div>
-                      <h2 className={sidebarStyles.questionTextContainer}>
-                        Question {currentQuestion + 1}: {currentQ.question}
-                      </h2>
-                    </div>
-                  </div>
+                  <h2 className={sidebarStyles.questionTextContainer}>
+                    Question {currentQuestion + 1}: {currentQ.question}
+                  </h2>
 
                   {/* Show status badge only in review mode */}
                   {reviewMode ? (

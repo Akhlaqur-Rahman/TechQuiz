@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
-import { BrowserRouter, useNavigate } from "react-router-dom";
+import { HashRouter, useNavigate } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
 
 function ClerkWithRouter() {
@@ -18,7 +18,7 @@ function ClerkWithRouter() {
 }
 
 createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
+  <HashRouter>
     <ClerkWithRouter />
-  </BrowserRouter>,
+  </HashRouter>,
 );
